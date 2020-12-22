@@ -21,6 +21,11 @@ const user = new mongoose.Schema({
 		required: true,
 		min: 8
 	},
+	bio: {
+		type: String,
+		required: false,
+		max: 250
+	},
 	posts: [
 		{
 			type: mongoose.Schema.Types.ObjectId,

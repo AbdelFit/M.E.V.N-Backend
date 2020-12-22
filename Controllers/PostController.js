@@ -7,10 +7,14 @@ module.exports = {
 	async index(req, res) {
 		try {
 			const posts = await Post.find()
+															.sort({ date: 'desc' })
 															.populate({ path: 'user', select: 'username' })
 															.populate({ 
 																path: 'comments', 
-															 	populate: { path: 'user', select: 'username' } 
+																populate: { path: 'user', select: 'username' },
+																options: {
+																	sort: { date: 'desc' }
+																}
 															})
 															.exec();
 		
@@ -53,36 +57,13 @@ module.exports = {
 		}
 	},
 
-	// get a post with its comments and user
-	async show(req, res) {
-		try {
-			const post = await Post.findById(req.params.id)
-															.populate({ 
-																path: 'user', 
-																select: 'username' 
-														 	})
-														 	.populate({ 
-																path: 'comments', 
-																populate: { path: 'user', select: 'username' } 
-														 	})
-														 	.exec();
-		
-			res.status(200).send(post);
-		} catch (error) {
-			res.status(400).send(error);
-		}
-	},
-
 	// update post
 	async update(req, res) {
 		try {
-			// validate req
-
-
 			// get req
 			const {title, text} = req.body;
 
-			// check if post exists and the auth user has access to change it
+			// check if the auth user has access to change post
 			let post = await Post.findOne({
 				_id: req.params.id,
 				user: req.auth_token._id
@@ -98,7 +79,10 @@ module.exports = {
 			await post.populate({ path: 'user', select: 'username' }).execPopulate();
 			await post.populate({ 
 									path: 'comments', 
-									populate: { path: 'user', select: 'username' } 
+									populate: { path: 'user', select: 'username' },
+									options: {
+										sort: { date: 'desc' }
+									}
 								}).execPopulate();
 	
 			res.status(200).send(post);
@@ -110,7 +94,7 @@ module.exports = {
 	// delete post
 	async delete(req, res) {
 		try {
-			// check if post exists and the auth user has access to delete it
+			// check if the auth user has access to delete post
 			const post = await Post.findOne({
 				_id: req.params.id,
 				user: req.auth_token._id
@@ -126,6 +110,31 @@ module.exports = {
 			await Post.findByIdAndDelete(req.params.id);
 
 			res.status(200).send('Post deleted!');
+		} catch (error) {
+			res.status(400).send(error);
+		}
+	},
+
+	// search posts
+	async search(req, res) {
+		try {
+			await Post.createIndexes({ "text": "text" });
+
+			const query = req.query.q.toLowerCase();
+
+			const posts = await Post.find({ $or: [
+																{ title: { $regex: query, $options: 'i' } },
+																{ text: { $regex: query, $options: 'i' } }
+															] })
+															.sort({date: 'desc'})
+															.populate({ path: 'user', select: 'username' })
+															.populate({ 
+																path: 'comments', 
+															 	populate: { path: 'user', select: 'username' } 
+															})
+															.exec();
+		
+			res.status(200).send(posts);
 		} catch (error) {
 			res.status(400).send(error);
 		}

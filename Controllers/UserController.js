@@ -10,16 +10,6 @@ module.exports = {
 	// sign up
 	async signup(req, res) {
 		try {
-			// validate req
-
-
-			// check if username or email already exists
-			const userExist = await User.findOne({$or: [
-				{email: req.body.email},
-				{username: req.body.username}
-			]});
-			if(userExist) return res.status(400).send('Email already exists!');
-
 			// get credentials
 			let {username, email, password} = req.body;
 
@@ -31,7 +21,8 @@ module.exports = {
 			let user = new User({
 				username: username,
 				email: email,
-				password: password
+				password: password,
+				bio: null
 			});
 
 			// save user
@@ -45,20 +36,17 @@ module.exports = {
 
 	// log in
 	async login(req, res) {
-		try {
-			// validate req
-		
-			
+		try {			
 			// get credentials
 			const {auth, password} = req.body;
 
-			// check if username or email exists and the password is valid
+			// check if the password is valid
 			const user = await User.findOne({$or: [
-				{email: auth},
-				{username: auth}
-			]});		
+				{ email: auth },
+				{ username: auth }
+			]});
 			const validPwd = await bcrypt.compare(password, user.password);
-			if(!validPwd || !user) return res.status(400).send('The email/username or password is wrong!');
+			if(!validPwd) return res.status(400).send('The email/username or password are incorrect!');
 		
 			// add token to user
 			const token = jwt.sign({_id: user._id}, process.env.TOKEN_SECRET);
@@ -66,6 +54,7 @@ module.exports = {
 				id: user._id,
 				username: user.username,
 				email: user.email,
+				bio: user.bio,
 				posts: user.posts,
 				comments: user.comments,
 				token: token
@@ -83,17 +72,32 @@ module.exports = {
 			const user = await User.findById(req.params.id)								 
 														 .populate({ 
 																path: 'posts', 
-																populate: { 
-																	path: 'comments',
-																	populate: {
+																populate: [
+																	{ 
+																		path: 'comments',
+																		populate: {
+																			path: 'user',
+																			select: 'username'
+																		}
+																	},
+																	{ 
 																		path: 'user',
-																		select: 'username'
+																		select: 'username' 
 																	}
-																} 
+																],
+																options: {
+																	sort: { date: 'desc' }
+																}
 														 	})
 														 .populate({ 
 																path: 'comments', 
-															 	populate: { path: 'user', select: 'username' } 
+																populate: [
+																	{ path: 'user', select: 'username' },
+																	{ path: 'post', select: 'title' }
+																],
+																options: {
+																	sort: { date: 'desc' }
+																} 
 															})
 														 .exec();
 
@@ -106,13 +110,10 @@ module.exports = {
 	// update user
 	async update(req, res) {
 		try {
-			// valildate req
-
-
-			// check if user exists and has the access to apply changes
+			// check if user has the access to apply changes
 			let user = await User.findOne({$and: [
-				{_id: req.params.id},
-				{_id: req.auth_token._id}
+				{ _id: req.params.id },
+				{ _id: req.auth_token._id }
 			]});
 			if(!user) return res.status(401).send("Access denied!");
 
@@ -122,7 +123,7 @@ module.exports = {
 
 				// check if username already exists
 				if(username != user.username) {
-					const userNameExist = await User.findOne({username: username});
+					const userNameExist = await User.findOne({ username: username });
 					if(userNameExist) return res.status(400).send("This username already exists!");
 				}
 				
@@ -144,10 +145,10 @@ module.exports = {
 				user.password = newPassword;
 			}
 
-			if(req.body.username || (req.body.oldPassword && req.body.newPassword)) {
-				// save changes
-				await user.save();
-			}
+			user.bio = req.body.bio ? req.body.bio : null;
+
+			// save changes
+			await user.save();
 
 			// add new token to user
 			const token = jwt.sign({_id: user._id}, process.env.TOKEN_SECRET);
@@ -155,6 +156,7 @@ module.exports = {
 				id: user._id,
 				username: user.username,
 				email: user.email,
+				bio: user.bio,
 				posts: user.posts,
 				comments: user.comments,
 				token: token
@@ -169,10 +171,10 @@ module.exports = {
 	// delete user
 	async delete(req, res) {
 		try {
-			// check if user exists and has the access to apply changes
+			// check if user has the access to apply changes
 			const user = await User.findOne({$and: [
-				{_id: req.params.id},
-				{_id: req.auth_token._id}
+				{ _id: req.params.id },
+				{ _id: req.auth_token._id }
 			]});
 			if(!user) return res.status(401).send("Access denied!");
 
