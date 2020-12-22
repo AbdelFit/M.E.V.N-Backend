@@ -2,7 +2,7 @@
 🌐 M.E.V.N Stack
 </h1>
 <p align="center">
-MongoDB, Expressjs, React/Redux, Nodejs
+MongoDB, Expressjs, VueJS, Nodejs
 </p>
 
 # Table of contents
