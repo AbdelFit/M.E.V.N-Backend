@@ -3,7 +3,8 @@ const mongoose = require('mongoose');
 const post = new mongoose.Schema({
 	title: {
 		type: String,
-		required: true
+		required: true,
+		max: 80
 	},
 	text: {
 		type: String,

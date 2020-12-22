@@ -3,20 +3,6 @@ const Post = require('../Models/Post');
 const User = require('../Models/User');
 
 module.exports = {
-	// get all comments
-	async index(req, res) {
-		try {
-			const comments = await Comment.find()
-																		.populate({ path: 'user', select: 'username' })
-																		.populate('post')
-																		.exec();
-		
-			res.status(200).send(comments);
-		} catch (error) {
-			res.status(400).send(error);
-		}
-	},
-
 	// add new comment
 	async create(req, res) {
 		// create new comment	
@@ -55,30 +41,13 @@ module.exports = {
 		}
 	},
 
-	// get a comment with its post and user
-	async show(req, res) {
-		try {
-			const comment = await Comment.findById(req.params.id)
-																	 .populate({ path: 'user', select: 'username' })
-																	 .populate('post')
-																	 .exec();
-		
-			res.status(200).send(comment);
-		} catch (error) {
-			res.status(400).send(error);
-		}
-	},
-
 	// update comment
 	async update(req, res) {
 		try {
-			// validate req
-
-
 			// get req
 			const text = req.body.text;
 
-			// check if post exists and the auth user has access to change it
+			// check if the auth user has access to change it
 			let comment = await Comment.findOne({
 				_id: req.params.id,
 				user: req.auth_token._id
@@ -90,9 +59,8 @@ module.exports = {
 
 			await comment.save();
 
-			await comment.populate({ path: 'user', select: 'username' })
-									 .populate('post')
-									 .exec();
+			await comment.populate({ path: 'user', select: 'username' }).execPopulate();
+			await comment.populate('post').execPopulate();
 	
 			res.status(200).send(comment);
 		} catch (error) {
@@ -103,7 +71,7 @@ module.exports = {
 	// delete comment
 	async delete(req, res) {
 		try {
-			// check if comment exists and the auth user has access to delete it
+			// check if the auth user has access to delete it
 			const comment = await Comment.findOne({
 				_id: req.params.id,
 				user: req.auth_token._id
